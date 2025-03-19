@@ -696,33 +696,22 @@ impl ManagedPythonDownload {
         {
             let mut archive_writer = BufWriter::new(fs_err::tokio::File::create(&temp_file).await?);
 
-            let progress = reporter.as_ref().map(|reporter| {
-                (
-                    reporter,
-                    reporter.on_request_start(Direction::Download, &self.key, size),
+            // Download with or without progress bar.
+            if let Some(reporter) = reporter {
+                let key = reporter.on_request_start(Direction::Download, &self.key, size);
+                tokio::io::copy(
+                    &mut ProgressReader::new(reader, key, reporter),
+                    &mut archive_writer,
                 )
-            });
-
-            match progress {
-                Some((&reporter, progress)) => {
-                    tokio::io::copy(
-                        &mut ProgressReader::new(reader, progress, reporter),
-                        &mut archive_writer,
-                    )
-                    .await?;
-                }
-                None => {
-                    tokio::io::copy(&mut reader, &mut archive_writer).await?;
-                }
+                .await?;
+                reporter.on_request_complete(Direction::Download, key);
+            } else {
+                tokio::io::copy(&mut reader, &mut archive_writer).await?;
             };
 
             archive_writer.flush().await?;
-
-            if let Some((&reporter, key)) = progress {
-                reporter.on_request_complete(Direction::Download, key);
-            };
         }
-        // Move the completed file into place, invalidating the file
+        // Move the completed file into place, invalidating the `File` instance.
         fs_err::rename(&temp_file, target_cache_file)?;
         Ok(())
     }
@@ -745,9 +734,7 @@ impl ManagedPythonDownload {
         });
 
         let reader: Box<dyn AsyncRead + Unpin> = match progress {
-            Some((&reporter, progress)) => {
-                Box::new(ProgressReader::new(reader, progress, reporter))
-            }
+            Some((&reporter, key)) => Box::new(ProgressReader::new(reader, key, reporter)),
             None => Box::new(reader),
         };
 
