@@ -15,7 +15,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          manylinux: manylinux_2_28-cross:aarch64
+          manylinux: manylinux_2_28-cross
           args: --release --out dist
       - uses: uraimo/run-on-arch-action@v3
         name: Install built wheel
