@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -15,7 +15,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          manylinux: auto
+          manylinux: manylinux_2_28-cross:aarch64
           args: --release --out dist
       - uses: uraimo/run-on-arch-action@v3
         name: Install built wheel
